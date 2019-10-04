@@ -7,14 +7,13 @@ from urllib.parse import urlparse
 from urllib import request
 import pandas as pd
 import traceback
+from datetime import date
 
-printoutput = False
-#####
-index = 1
-# auditlist = ('speed-index','first-contentful-paint','total-byte-weight','first-meaningful-paint','time-to-first-byte','first-contentful-paint-3g','interactive','structured-data')
 
 ##### SETTINGS ######
 
+printoutput = False #if you want some terminal output just set printout to True
+usecache = True #if set to true, saved responses will be used for the current date.
 # What Categories to check
 categorieslist = ('seo','performance','best-practices')#'accessibility','pwa')
 # For which audits to export detailed info
@@ -22,8 +21,8 @@ detailsexport = ('resource-summary','network-requests','total-byte-weight','unus
 # Strategy (mobile or desktop), since google switched to mobile first set to mobile
 strategy = 'mobile'
 # If you do regular request and automate it, go get an API-Key and put it there
-apikey = '' # '&key=YOURKEY'
-
+apikey = '' #'&key=YOURKEY'
+today = str(date.today())
 
 ##### END ######
 lhcategories = ''
@@ -44,12 +43,13 @@ with open('urllist.json') as json_file:
         path = urlelements.path
         if not path.endswith('/'):
             path = path + '/'
-        basepath = os.getcwd() + "/testresults/" + domainp + path
-        filename = basepath + 'result.json'
-        result = Path(basepath + 'result.json')
+        basepath = os.getcwd() + "/testresults/" + domainp + path + today +'/'
+        filename = basepath +'result.json'
+        result = Path(basepath +'result.json')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         #check if there is already a resultset for the url
-        if not result.is_file():
+        if not result.is_file() or not usecache:
+            print("\nFetching results from api")
             x = f'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url={url}{lhcategories}&strategy={strategy}{apikey}&locale=de-DE'
             response = requests.get(x)
             lhtest = response.json()
@@ -58,16 +58,16 @@ with open('urllist.json') as json_file:
                     jsonstr = json.dumps(lhtest, ensure_ascii=False, indent=4)
                     re.write(jsonstr)
                     re.close()
+            else:
+                print("Request was not successful")
+                print(lhtest)
+                exit()
         else:
+            print("Using response from cache")
             with open(result, 'r+') as tmp:
                 lhtest = json.load(tmp)
                 tmp.close()
-        try:
-            print("\nResults fetched from api")
-        except KeyError:
-            print("Request was not successful")
-            print(lhtest)
-            exit()
+
         try:
             url = lhtest['id']
 
